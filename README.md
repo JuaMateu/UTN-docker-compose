@@ -1,6 +1,6 @@
 # Instrucciones de uso
 
-1. Armar la estructura del proyecto. (la misma se aclara en la siguiente sección)
+1. Clonar el proyecto
 
 2. Ejecutar `docker compose up --build -d` en la raíz.
 
