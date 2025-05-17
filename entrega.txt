@@ -40,39 +40,55 @@ ENTREGA
 ============================================================================================
 
     Descripción: 
-    Quería usar python con flask porque suelo hacer scripts sencillos con python en mi trabajo. 
-    No pretendí hacer nada demasiado complejo porque no soy programador.
+    Quería utilizar por lo menos dos contenedores con docker compose por lo cual armé un pequeño frontend y un backend.
+    los logs quedan guardados en un volumen montado en el backend. se pueden visualizar pegandole a su endpoint (:8080/logs)
+    Usé flask para los servidores web y un html para enviar peticiones al backend. 
+    
 
     instrucciones:
 
-    1- ejectura " docker compose up --build -d " o " docker compose up -d " si ya esta buildeado
+    1- Armar la estructura del proyecto. (la misma se acalara en la siguiente sección)
 
-    Inputs:
-    Se puede enviar dos numeros por parametro con el siguiente endpoint y argumentos: 
-    1- http://localhost:8080/multiplicar?x=2&y=3
+    2- ejectura " docker compose up --build -d " en la raiz 
 
-    Modificaciones posibles:
+    esto levanta: 
+     -  un contenedor "frontend" puerto 80
+          endpoint "localhost:80/"
+     -  un contenedor "backend" puerto 8080
+          endpoint: "localhost:8080/multiplicar" espera 2 parametros numericos y devuelve un mensaje con el resultado
+          endpoint: "localhost:8080/logs" muestra los logs guardados 
+
+    3- Ingresar a localhost:80 (frontend) y enviar dos numeros para una multiplicación
+    Se debe mostrar el resultado en pantalla
+    (funciona haciendo un fetch al backend, http://localhost:8080/multiplicar?x=2&y=3)
+    
+    4 - Modificaciones posibles:
         Si modificamos los parámetros X e Y a otros valores, como x=5&y=10, se obtendrá otro resultado (50). 
-        Si se omite uno de los dos parámetros o se pasa algo distinto a un numero, se devuelve un error con código 400.
+        Si se hace un curl directo al backend y se omite uno de los dos parámetros o se pasa algo distinto a un numero, se devuelve un error con código 400.
 
-    Debe devolver el multiplo de estos numeros y guardarlo en logs en un volumen para persistencia con el siguiente formato:
+    5 - Debe devolver el multiplo de estos numeros y guardarlo en logs en un volumen para persistencia con el siguiente formato:
+        [timestamp] - mensaje
 
-    [timestamp] - mensaje
-
-    Tambien se puede ingresar al siguiente endpoint para ver los logs
-
-    2- http://localhost:8080/logs
+    6- Tambien se puede ingresar al siguiente endpoint para ver los logs
+       http://localhost:8080/logs
 
 ============================================================================================
 ESTRUCTURA DE ARCHIVOS
 ============================================================================================
+   
     .
+    ├── backend
+    │   ├── dockerfile
+    │   ├── requirements.txt
+    │   └── server.py
     ├── docker-compose.yaml
-    ├── dockerfile
-    ├── entrega.txt
-    ├── instrucciones.md
-    ├── requirements.txt
-    └── server.py
+    ├── frontend
+    │   ├── Dockerfile
+    │   ├── index.html
+    │   ├── requirements.txt
+    │   └── server.py
+    └── instrucciones.md
+
 
 
 ============================================================================================
@@ -80,18 +96,25 @@ docker-compose.yaml
 ============================================================================================
 
 services:
-  web:
-    build: .
+  backend:
+    build:
+      context: ./backend
     ports:
       - "8080:8080"
     volumes:
       - logs:/logs
 
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"
+
 volumes:
   logs:
 
 ============================================================================================
-dockerfile
+dockerfile - BACKEND
 ============================================================================================
 
 FROM python:3.10-slim
@@ -106,20 +129,23 @@ COPY server.py .
 CMD echo "Servidor python iniciado correctamente" && python server.py
 
 ============================================================================================
-requirements.txt
+requirements.txt - BACKEND
 ============================================================================================
 
 flask
+flask_cors
 
 ============================================================================================
-server.py
+server.py - BACKEND
 ============================================================================================
 
 from flask import Flask, request
+from flask_cors import CORS
 import datetime
 import os
 
 app = Flask(__name__)
+CORS(app)
 
 LOG_FILE = "/logs/multiplicaciones.log"
 
@@ -161,3 +187,74 @@ def ver_logs():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
+
+
+============================================================================================
+dockerfile - BACKEND
+============================================================================================
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY . .
+RUN pip install -r requirements.txt
+
+CMD ["python", "server.py"]
+
+============================================================================================
+requirements.txt - FRONTEND
+============================================================================================
+
+flask
+
+============================================================================================
+server.py - FRONTEND
+============================================================================================
+
+from flask import Flask, send_file
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return send_file("index.html")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=80)
+
+============================================================================================
+index.html - FRONTEND
+============================================================================================
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Multiplicador</title>
+</head>
+
+<body>
+    <h1>Multiplicador</h1>
+    <form id="form">
+        <input type="number" id="x" placeholder="Número X" required />
+        <input type="number" id="y" placeholder="Número Y" required />
+        <button type="submit">Multiplicar</button>
+    </form>
+    <p id="resultado"></p>
+
+    <script>
+        document.getElementById("form").onsubmit = async (e) => {
+            e.preventDefault();
+            const x = document.getElementById("x").value;
+            const y = document.getElementById("y").value;
+            const res = await fetch(`http://localhost:8080/multiplicar?x=${x}&y=${y}`);
+            const text = await res.text();
+            document.getElementById("resultado").innerText = text;
+        };
+    </script>
+</body>
+
+</html>
+

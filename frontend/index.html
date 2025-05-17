@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Multiplicador</title>
+</head>
+
+<body>
+    <h1>Multiplicador</h1>
+    <form id="form">
+        <input type="number" id="x" placeholder="Número X" required />
+        <input type="number" id="y" placeholder="Número Y" required />
+        <button type="submit">Multiplicar</button>
+    </form>
+    <p id="resultado"></p>
+
+    <script>
+        document.getElementById("form").onsubmit = async (e) => {
+            e.preventDefault();
+            const x = document.getElementById("x").value;
+            const y = document.getElementById("y").value;
+            const res = await fetch(`http://localhost:8080/multiplicar?x=${x}&y=${y}`);
+            const text = await res.text();
+            document.getElementById("resultado").innerText = text;
+        };
+    </script>
+</body>
+
+</html>
