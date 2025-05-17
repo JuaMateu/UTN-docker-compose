@@ -1,0 +1,163 @@
+============================================================================================
+CONSIGNA
+============================================================================================
+    Requisitos de finalización
+    Apertura: Thursday, 1 de May de 2025, 00:00
+    Esta actividad es obligatoria y debe ser entregada como parte de requisito de aprobación del curso. 
+
+    Consigna:
+
+    Elijamos una tecnología de nuestra preferencia y creemos una imagen de algún servidor con Dockerfile para ser incluida en un Compose.
+
+    La imagen debe tener al menos una instrucción personalizada que se imprima por pantalla.
+
+    El Docker Compose debe contener una instrucción build a nuestro Dockerfile y un componente de persistencia que interactúe con nuestro server.
+
+    Es importante entregar:
+    Todo en un único archivo de texto, separado por secciones. El archivo puede ser PDF, Word, o incluso TXT. 
+    Una sección del texto donde se indique, mínimamente:
+    Fundamentación de las tecnologías elegidas.
+
+    Inputs de prueba, y outputs esperados para cada una de ellos.
+
+    Una breve explicación sobre cómo modificar los input para obtener otros outputs distintos a los provistos.
+
+    Ejemplo de documento a entregar:
+    Descripción: elegí TAL o CUAL tecnología porque me siento cómod@ con ellas, y además laboralmente me sirve debido a que....
+
+    Inputs:
+    GET a localhost:8080/mi_endpoint con el parámetro ABC=123. El resultado debería ser XYZ
+
+    Modificaciones posibles:
+    si el GET previo recibe diferentes parámetros a ABC, retornará otros valores de acuerdo a TAL O CUAL algoritmo
+
+
+
+FECHA DE ENTREGA: 18/5/2025 A LAS 23:59
+
+============================================================================================
+ENTREGA
+============================================================================================
+
+    Descripción: 
+    Quería usar python con flask porque suelo hacer scripts sencillos con python en mi trabajo. 
+    No pretendí hacer nada demasiado complejo porque no soy programador.
+
+    instrucciones:
+
+    1- ejectura " docker compose up --build -d " o " docker compose up -d " si ya esta buildeado
+
+    Inputs:
+    Se puede enviar dos numeros por parametro con el siguiente endpoint y argumentos: 
+    1- http://localhost:8080/multiplicar?x=2&y=3
+
+    Modificaciones posibles:
+        Si modificamos los parámetros X e Y a otros valores, como x=5&y=10, se obtendrá otro resultado (50). 
+        Si se omite uno de los dos parámetros o se pasa algo distinto a un numero, se devuelve un error con código 400.
+
+    Debe devolver el multiplo de estos numeros y guardarlo en logs en un volumen para persistencia con el siguiente formato:
+
+    [timestamp] - mensaje
+
+    Tambien se puede ingresar al siguiente endpoint para ver los logs
+
+    2- http://localhost:8080/logs
+
+============================================================================================
+ESTRUCTURA DE ARCHIVOS
+============================================================================================
+    .
+    ├── docker-compose.yaml
+    ├── dockerfile
+    ├── entrega.txt
+    ├── instrucciones.md
+    ├── requirements.txt
+    └── server.py
+
+
+============================================================================================
+docker-compose.yaml
+============================================================================================
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - logs:/logs
+
+volumes:
+  logs:
+
+============================================================================================
+dockerfile
+============================================================================================
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY server.py .
+
+CMD echo "Servidor python iniciado correctamente" && python server.py
+
+============================================================================================
+requirements.txt
+============================================================================================
+
+flask
+
+============================================================================================
+server.py
+============================================================================================
+
+from flask import Flask, request
+import datetime
+import os
+
+app = Flask(__name__)
+
+LOG_FILE = "/logs/multiplicaciones.log"
+
+@app.route("/multiplicar")
+def multiplicar():
+
+    # valida los parámetros
+    try:
+        x = float(request.args.get("x"))
+        y = float(request.args.get("y"))
+    except (TypeError, ValueError):
+        return "Parámetros inválidos. Probá /multiplicar?x=2&y=3", 400
+
+    # calcula la multiplicación y genera el mensaje
+    resultado = x * y
+    mensaje = f"Se multiplicó {x} por {y}, el resultado fue {resultado}"
+
+    # Asegura que el directorio exista
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+
+    # Escribe el mensaje en el archivo de log
+    with open(LOG_FILE, "a") as log:
+        log.write(f"[{datetime.datetime.now()}] {mensaje}\n")
+
+    # Devuelve el mensaje al usuario
+    return mensaje
+
+#ruta para ver los logs
+@app.route("/logs")
+def ver_logs():
+    # Verifica si el archivo de log existe
+    if not os.path.exists(LOG_FILE):
+        return "No hay logs aún."
+    # Lee el contenido del archivo de log
+    with open(LOG_FILE, "r") as log:
+        contenido = log.read()
+    # Devuelve el contenido del archivo de log
+    return f"<pre>{contenido}</pre>"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
